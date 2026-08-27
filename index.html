@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeeDee มินิมาร์ท - ระบบบริหารจัดการร้านค้า</title>
+  <meta name="description" content="ระบบบริหารจัดการร้านค้า MeeDee มินิมาร์ท POS คลังสินค้า และ Dashboard สรุปยอดขาย">
+  <!-- Google Fonts: Prompt & Sarabun -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for Dashboard Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS for Excel Export/Import -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-900 text-slate-100 font-prompt">
+
+  <!-- ==================== MAIN HEADER / NAV BAR ==================== -->
+  <header id="main-header" class="main-header hidden">
+    <div class="header-container">
+      <!-- Logo & Brand -->
+      <div class="brand-box">
+        <img src="assets/logo.png" alt="MeeDee Logo" class="header-logo">
+        <div class="brand-text">
+          <h1 class="brand-title">MeeDee <span class="accent-text">มินิมาร์ท</span></h1>
+          <p class="brand-subtitle">ระบบบริหารจัดการร้านค้า</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Exact layout matching wireframes) -->
+      <nav class="nav-tabs">
+        <button id="nav-pos" class="nav-tab active" onclick="switchView('pos')">
+          <i class="fa-solid fa-cart-shopping"></i> หน้าขายสินค้า
+        </button>
+        <button id="nav-inventory" class="nav-tab" onclick="switchView('inventory')">
+          <i class="fa-solid fa-boxes-stacked"></i> คลังสินค้า
+        </button>
+        <button id="nav-dashboard" class="nav-tab" onclick="switchView('dashboard')">
+          <i class="fa-solid fa-chart-line"></i> Dashboard
+        </button>
+      </nav>
+
+      <!-- Active User Info & Logout -->
+      <div class="user-profile-box">
+        <div class="user-avatar">
+          <i class="fa-solid fa-user-gear"></i>
+        </div>
+        <div class="user-details">
+          <span id="user-display-name" class="user-name">นายสมชาย ใจดี</span>
+          <span id="user-display-role" class="user-role">พนักงานขาย (Cashier)</span>
+        </div>
+        <button class="logout-btn" onclick="handleLogout()" title="ออกจากระบบ">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== VIEW 1: LOGIN PAGE ==================== -->
+  <section id="view-login" class="view-section login-section">
+    <div class="login-card shadow-glow">
+      <div class="login-logo-wrapper">
+        <img src="assets/logo.png" alt="MeeDee Minimart Logo" class="login-logo">
+      </div>
+      <h2 class="login-heading">ระบบบริหารจัดการร้านค้า</h2>
+      <p class="login-subheading">MeeDee มินิมาร์ท</p>
+
+      <form id="login-form" onsubmit="handleLogin(event)" class="login-form">
+        <div class="form-group">
+          <label for="username"><i class="fa-solid fa-user"></i> ชื่อใช้งาน (Username)</label>
+          <input type="text" id="username" class="form-input" placeholder="กรอกชื่อใช้งาน..." required value="cashier">
+        </div>
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> รหัสผ่าน (Password)</label>
+          <input type="password" id="password" class="form-input" placeholder="กรอกรหัสผ่าน..." required value="1234">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> เข้าสู่ระบบ
+        </button>
+      </form>
+
+      <!-- Quick Login Demo Triggers -->
+      <div class="quick-demo-box">
+        <span class="quick-title">⚡ ทดลองเข้าสู่ระบบด่วน (Demo Login):</span>
+        <div class="quick-buttons">
+          <button type="button" class="quick-btn cashier" onclick="quickLogin('cashier')">
+            <i class="fa-solid fa-cash-register"></i> บัญชี พนักงานขาย
+          </button>
+          <button type="button" class="quick-btn admin" onclick="quickLogin('admin')">
+            <i class="fa-solid fa-user-shield"></i> บัญชี ผู้จัดการร้าน
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== VIEW 2: POS / SALE PAGE ==================== -->
+  <section id="view-pos" class="view-section pos-section hidden">
+    <!-- Barcode & Product Search Bar -->
+    <div class="search-barcode-bar shadow-card">
+      <div class="search-title">
+        <i class="fa-solid fa-barcode"></i> ค้นหาสินค้า / สแกนบาร์โค้ด
+      </div>
+      <div class="search-input-group">
+        <input type="text" id="search-input" class="search-input" placeholder="กรอกรหัส / ชื่อสินค้า..." oninput="handleSearchInput(event)">
+        <button class="btn btn-secondary" onclick="executeSearch()">
+          <i class="fa-solid fa-magnifying-glass"></i> กดค้นหา
+        </button>
+        <button class="btn btn-accent" onclick="simulateBarcodeScan()">
+          <i class="fa-solid fa-camera"></i> จำลองสแกนบาร์โค้ด
+        </button>
+      </div>
+      <!-- Category Filter Pills -->
+      <div class="category-pills" id="category-pills">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Main Content Grid (Products + Cart) -->
+    <div class="pos-grid">
+      <!-- Left Column: Product Grid -->
+      <div class="products-container">
+        <div class="section-title-bar">
+          <h3><i class="fa-solid fa-store"></i> รายการสินค้าพร้อมขาย</h3>
+          <span id="product-count-badge" class="badge">0 รายการ</span>
+        </div>
+        <div id="product-grid" class="product-grid">
+          <!-- Dynamically populated product cards -->
+        </div>
+      </div>
+
+      <!-- Right Column: Cart Panel (Exact Wireframe #2 structure) -->
+      <div class="cart-container shadow-card">
+        <div class="cart-header">
+          <h3><i class="fa-solid fa-cart-shopping"></i> รายการสั่งซื้อ (Cart)</h3>
+          <button class="btn-sm btn-outline-danger" onclick="clearCart()" title="ล้างตะกร้า">
+            <i class="fa-solid fa-trash"></i> ล้างตะกร้า
+          </button>
+        </div>
+
+        <!-- Cart Items Scroll Area -->
+        <div id="cart-items-list" class="cart-items-list">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Cart Financial Totals -->
+        <div class="cart-summary-box">
+          <div class="summary-row">
+            <span>ยอดรวม (Subtotal):</span>
+            <span id="cart-subtotal" class="summary-val">฿0.00</span>
+          </div>
+          <div class="summary-row vat-row">
+            <label class="vat-checkbox-label">
+              <input type="checkbox" id="cart-vat-toggle" onchange="updateCartTotals()"> คิด VAT 7%
+            </label>
+            <span id="cart-vat-amount" class="summary-val">฿0.00</span>
+          </div>
+          <div class="summary-row grand-total-row">
+            <span class="total-label">ยอดรวมสุทธิ:</span>
+            <span id="cart-grand-total" class="total-val">฿0.00</span>
+          </div>
+
+          <!-- Payment Input & Cash Quick Buttons -->
+          <div class="payment-box">
+            <div class="form-group">
+              <label for="cash-received"><i class="fa-solid fa-money-bill-wave"></i> รับเงินมา (Cash Received):</label>
+              <input type="number" id="cash-received" class="cash-input" placeholder="0.00" step="1" oninput="calculateChange()">
+            </div>
+            <div class="quick-cash-buttons">
+              <button class="quick-cash-btn" onclick="setQuickCash(50)">฿50</button>
+              <button class="quick-cash-btn" onclick="setQuickCash(100)">฿100</button>
+              <button class="quick-cash-btn" onclick="setQuickCash(500)">฿500</button>
+              <button class="quick-cash-btn" onclick="setQuickCash(1000)">฿1,000</button>
+              <button class="quick-cash-btn exact" onclick="setExactCash()">จ่ายพอดี</button>
+            </div>
+          </div>
+
+          <div class="summary-row change-row">
+            <span>เงินทอน (Change):</span>
+            <span id="cart-change-amount" class="change-val">฿0.00</span>
+          </div>
+
+          <!-- Print Slip & Checkout Button (Wireframe 2) -->
+          <button id="btn-checkout" class="btn btn-success btn-block btn-xl mt-3" onclick="processCheckout()">
+            <i class="fa-solid fa-receipt"></i> พิมพ์ใบเสร็จรับเงิน
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== VIEW 3: INVENTORY PAGE ==================== -->
+  <section id="view-inventory" class="view-section inventory-section hidden">
+    <!-- Filter & Action Header (Matching Wireframe #5) -->
+    <div class="inventory-top-bar shadow-card">
+      <div class="inventory-title-group">
+        <h2><i class="fa-solid fa-boxes-stacked"></i> คลังสินค้า & สรุปยอดขายสินค้า</h2>
+        <p class="subtitle">จัดการสต็อกสินค้า เติมสต็อก และส่งออกรายงาน Excel</p>
+      </div>
+
+      <div class="inventory-controls">
+        <!-- Date Selector Filter (Matching Wireframe #5) -->
+        <div class="date-picker-group">
+          <label for="sales-date-filter"><i class="fa-solid fa-calendar-days"></i> เลือกวันที่:</label>
+          <input type="date" id="sales-date-filter" class="date-input" onchange="renderInventoryTable()">
+        </div>
+
+        <button class="btn btn-primary" onclick="openAddProductModal()">
+          <i class="fa-solid fa-plus"></i> เพิ่มสินค้าใหม่
+        </button>
+        <button class="btn btn-outline-success" onclick="exportToExcel()">
+          <i class="fa-solid fa-file-excel"></i> Export รายงาน Excel/CSV
+        </button>
+        <button class="btn btn-outline-info" onclick="triggerImportExcel()">
+          <i class="fa-solid fa-file-import"></i> Import สต็อก Excel
+        </button>
+        <input type="file" id="excel-import-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleImportExcel(event)">
+      </div>
+    </div>
+
+    <!-- Inventory Stat Cards (Matching Wireframe #5) -->
+    <div class="inventory-summary-cards">
+      <div class="stat-card blue">
+        <div class="stat-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div class="stat-info">
+          <span class="stat-title">ยอดเงินรวมในคลัง/วันที่เลือก</span>
+          <h3 id="inv-total-sales-amount" class="stat-value">฿0.00</h3>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon"><i class="fa-solid fa-boxes-packing"></i></div>
+        <div class="stat-info">
+          <span class="stat-title">ยอดจำนวนสินค้ารวม</span>
+          <h3 id="inv-total-sales-qty" class="stat-value">0 ชิ้น</h3>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="stat-info">
+          <span class="stat-title">สินค้าใกล้หมดสต็อก (< 5 ชิ้น)</span>
+          <h3 id="inv-low-stock-count" class="stat-value">0 รายการ</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Table (Exact Wireframe #5 layout) -->
+    <div class="table-container shadow-card">
+      <table class="inventory-table">
+        <thead>
+          <tr>
+            <th>รหัสสินค้า</th>
+            <th>รูป</th>
+            <th>ชื่อสินค้า</th>
+            <th>หมวดหมู่</th>
+            <th>ราคา</th>
+            <th>คงเหลือ (สต็อก)</th>
+            <th>เวลาที่ขายล่าสุด / จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="inventory-table-body">
+          <!-- Populated dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== VIEW 4: DASHBOARD PAGE ==================== -->
+  <section id="view-dashboard" class="view-section dashboard-section hidden">
+    <!-- Top KPI Row (Wireframe #3) -->
+    <div class="dashboard-kpi-grid">
+      <div class="kpi-card shadow-card clickable" onclick="filterTransactions('all')">
+        <div class="kpi-icon-bg emerald">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">ยอดขายวันนี้</span>
+          <h2 id="dash-today-sales" class="kpi-number">฿0.00</h2>
+          <span class="kpi-subtext"><i class="fa-solid fa-arrow-trend-up"></i> รายได้ขายหน้าร้าน</span>
+        </div>
+      </div>
+
+      <div class="kpi-card shadow-card clickable" onclick="filterTransactions('today')">
+        <div class="kpi-icon-bg blue">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">จำนวนคำสั่งซื้อ</span>
+          <h2 id="dash-order-count" class="kpi-number">0 บิล</h2>
+          <span class="kpi-subtext">รายการชำระเงินสำเร็จ</span>
+        </div>
+      </div>
+
+      <div class="kpi-card shadow-card clickable" onclick="switchView('inventory')">
+        <div class="kpi-icon-bg orange">
+          <i class="fa-solid fa-box-open"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">สินค้าใกล้หมดสต็อก</span>
+          <h2 id="dash-low-stock-count" class="kpi-number">0 รายการ</h2>
+          <span class="kpi-subtext text-warning"><i class="fa-solid fa-circle-exclamation"></i> คลิกเพื่อเติมสต็อก</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts & Best Sellers Grid (Wireframe #3) -->
+    <div class="dashboard-charts-grid">
+      <!-- Sales & Profit Chart with Period Selector -->
+      <div class="chart-card shadow-card">
+        <div class="card-header-bar">
+          <h3><i class="fa-solid fa-chart-area"></i> กราฟยอดขายและกำไร</h3>
+          <!-- Period Selector Buttons -->
+          <div class="chart-period-selector">
+            <button class="period-btn active" onclick="changeChartPeriod(7, this)">7 วัน</button>
+            <button class="period-btn" onclick="changeChartPeriod(30, this)">30 วัน</button>
+            <button class="period-btn" onclick="changeChartPeriod(60, this)">60 วัน</button>
+            <button class="period-btn" onclick="changeChartPeriod(90, this)">90 วัน</button>
+          </div>
+        </div>
+        <div id="chart-period-label" style="font-size:0.8rem; color: var(--text-muted); margin-bottom:0.5rem;">
+          <i class="fa-solid fa-calendar-days"></i> แสดงข้อมูลย้อนหลัง <span id="chart-days-text">7</span> วัน
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="salesProfitChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Top 5 Best Selling Products (Wireframe #3) -->
+      <div class="top-sellers-card shadow-card">
+        <div class="card-header-bar">
+          <h3><i class="fa-solid fa-trophy"></i> 5 อันดับสินค้าขายดีที่สุด</h3>
+          <span class="badge bg-amber">ยอดขายสูงสุด</span>
+        </div>
+        <div id="top-sellers-list" class="top-sellers-list">
+          <!-- Dynamically populated top 5 items -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaction History Section (Newly added per user request) -->
+    <div class="history-section shadow-card mt-4">
+      <div class="card-header-bar">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> ประวัติการซื้อขายย้อนหลัง (Transaction History Log)</h3>
+        <button class="btn btn-sm btn-outline-success" onclick="exportTransactionsExcel()">
+          <i class="fa-solid fa-download"></i> โหลดประวัติเป็น Excel
+        </button>
+      </div>
+      <div class="table-container">
+        <table class="inventory-table">
+          <thead>
+            <tr>
+              <th>เลขที่บิล</th>
+              <th>วันที่ & เวลา</th>
+              <th>รายการสินค้าที่ซื้อ</th>
+              <th>จำนวนชิ้น</th>
+              <th>ยอดเงินรวม</th>
+              <th>เงินรับมา / เงินทอน</th>
+              <th>พนักงานขาย</th>
+              <th>สลิป</th>
+            </tr>
+          </thead>
+          <tbody id="transaction-history-body">
+            <!-- Dynamically populated orders -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== RECEIPT SLIP MODAL (Wireframe #4) ==================== -->
+  <div id="receipt-modal" class="modal-overlay hidden">
+    <div class="modal-content receipt-modal-box">
+      <!-- Print Preview Wrapper -->
+      <div id="receipt-printable-area" class="receipt-slip-paper">
+        <!-- Logo & Header -->
+        <div class="slip-header text-center">
+          <img src="assets/logo.png" alt="MeeDee Logo" class="slip-logo">
+          <h2 class="slip-title">ใบเสร็จรับเงิน</h2>
+          <h4 class="slip-shop">บริษัท MeeDee มินิมาร์ท</h4>
+          <p class="slip-date" id="slip-date-time">วันที่ 00/00/0000 00:00:00</p>
+          <p class="slip-bill-no" id="slip-bill-id">เลขที่บิล: #REC-00000</p>
+          <div class="slip-divider-dashed"></div>
+          <p class="slip-subheading">รายการสินค้าดังนี้</p>
+        </div>
+
+        <!-- Receipt Items List (Wireframe #4: สินค้า x2 - จำนวนเงิน) -->
+        <div id="slip-items-container" class="slip-items">
+          <!-- Dynamic Items -->
+        </div>
+
+        <div class="slip-divider-dashed"></div>
+
+        <!-- Receipt Totals (Wireframe #4: ยอดรวม, รับเงินมา, เงินทอน) -->
+        <div class="slip-totals">
+          <div class="slip-row">
+            <span>VAT 7%:</span>
+            <span id="slip-vat-val">฿0.00</span>
+          </div>
+          <div class="slip-row bold-row">
+            <span>ยอดรวม:</span>
+            <span id="slip-total-val">฿0.00</span>
+          </div>
+          <div class="slip-row">
+            <span>รับเงินมา:</span>
+            <span id="slip-cash-val">฿0.00</span>
+          </div>
+          <div class="slip-row">
+            <span>เงินทอน:</span>
+            <span id="slip-change-val">฿0.00</span>
+          </div>
+        </div>
+
+        <div class="slip-footer text-center">
+          <p>*** ขอบคุณที่ใชบริการ MeeDee มินิมาร์ท ***</p>
+          <p class="slip-cashier-tag" id="slip-cashier-name">พนักงาน: นายสมชาย ใจดี</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons (Wireframe #4: พิมพ์ใบเสร็จรับเงิน) -->
+      <div class="receipt-modal-actions">
+        <button class="btn btn-success btn-lg" onclick="printReceiptSlip()">
+          <i class="fa-solid fa-print"></i> พิมพ์ใบเสร็จรับเงิน
+        </button>
+        <button class="btn btn-secondary btn-lg" onclick="closeReceiptModal()">
+          <i class="fa-solid fa-circle-check"></i> ทำรายการใหม่ / ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ADD / EDIT PRODUCT MODAL ==================== -->
+  <div id="product-modal" class="modal-overlay hidden">
+    <div class="modal-content product-form-modal shadow-glow">
+      <div class="modal-header">
+        <h3 id="product-modal-title"><i class="fa-solid fa-box"></i> เพิ่มสินค้าใหม่</h3>
+        <button class="close-modal-btn" onclick="closeProductModal()">&times;</button>
+      </div>
+      <form id="product-form" onsubmit="saveProductForm(event)">
+        <input type="hidden" id="edit-product-id">
+        <div class="form-group">
+          <label for="prod-barcode">รหัสบาร์โค้ด (Barcode):</label>
+          <input type="text" id="prod-barcode" class="form-input" required placeholder="เช่น 885001234567">
+        </div>
+        <div class="form-group">
+          <label for="prod-name">ชื่อสินค้า:</label>
+          <input type="text" id="prod-name" class="form-input" required placeholder="เช่น ชาเขียวโออิชิ 500ml">
+        </div>
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="prod-category">หมวดหมู่:</label>
+            <select id="prod-category" class="form-input" required>
+              <option value="เครื่องดื่ม">เครื่องดื่ม</option>
+              <option value="ขนม/ของกินเล่น">ขนม/ของกินเล่น</option>
+              <option value="บะหมี่/อาหารแห้ง">บะหมี่/อาหารแห้ง</option>
+              <option value="นม/เบเกอรี่">นม/เบเกอรี่</option>
+              <option value="ยาสามัญประจำบ้าน">ยาสามัญประจำบ้าน</option>
+              <option value="เครื่องเทศ/เครื่องปรุง">เครื่องเทศ/เครื่องปรุง</option>
+              <option value="สินค้าจำเป็น/ข้าวสาร">สินค้าจำเป็น/ข้าวสาร</option>
+              <option value="อุปกรณ์การเรียน">อุปกรณ์การเรียน</option>
+              <option value="ของใช้ประจำวัน">ของใช้ประจำวัน</option>
+            </select>
+          </div>
+          <div class="form-group half">
+            <label for="prod-price">ราคาขาย (บาท):</label>
+            <input type="number" id="prod-price" class="form-input" step="0.5" required placeholder="20.00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="prod-stock">จำนวนสต็อก (ชิ้น):</label>
+            <input type="number" id="prod-stock" class="form-input" required placeholder="50">
+          </div>
+          <div class="form-group half">
+            <label for="prod-img-type">รูปภาพสินค้า:</label>
+            <select id="prod-img-type" class="form-input">
+              <option value="assets/drink_tea.png">เครื่องดื่ม (Drink)</option>
+              <option value="assets/snack_chips.png">ขนม (Snack)</option>
+              <option value="assets/noodle_cup.png">บะหมี่ถ้วย (Noodle)</option>
+              <option value="assets/milk_carton.png">นม (Milk)</option>
+              <option value="assets/medicine_box.png">ยาสามัญประจำบ้าน (Medicine)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeProductModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Main JavaScript App Engine -->
+  <script src="app.js"></script>
+</body>
+</html>
